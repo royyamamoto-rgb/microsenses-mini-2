@@ -780,7 +780,203 @@ html, body {
     border-color: var(--accent);
 }
 
-/* ── Canvas Overlay Styles (drawn via JS) ── */
+/* ── Neuro-Psych Analysis Panel ── */
+#neuro-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: var(--bg-primary);
+    overflow-y: auto;
+    animation: neuro-slide-in 0.3s ease;
+}
+
+@keyframes neuro-slide-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+#neuro-panel .panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.neuro-body {
+    padding: 1rem;
+    padding-bottom: 3rem;
+}
+
+/* Biometrics Grid */
+.neuro-biometrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.bio-stat {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem;
+    text-align: center;
+}
+
+.bio-stat-label {
+    font-size: 0.5rem;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.bio-stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.bio-stat-value.normal { color: var(--safe); }
+.bio-stat-value.warning { color: var(--caution); }
+.bio-stat-value.alert { color: var(--elevated); }
+.bio-stat-value.critical { color: var(--critical); }
+
+.bio-stat-unit {
+    font-size: 0.5rem;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    margin-top: 0.1rem;
+}
+
+/* Condition Cards */
+.neuro-conditions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.condition-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 1rem;
+    border-left: 4px solid var(--text-muted);
+}
+
+.condition-card.minimal { border-left-color: var(--text-muted); }
+.condition-card.low { border-left-color: var(--safe); }
+.condition-card.moderate { border-left-color: var(--caution); }
+.condition-card.high { border-left-color: var(--critical); }
+
+.condition-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.condition-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.condition-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.condition-badge.minimal { background: rgba(85,85,85,0.2); color: var(--text-muted); }
+.condition-badge.low { background: rgba(0,230,118,0.15); color: var(--safe); }
+.condition-badge.moderate { background: rgba(255,193,7,0.15); color: var(--caution); }
+.condition-badge.high { background: rgba(255,23,68,0.15); color: var(--critical); }
+
+.condition-likelihood-bar {
+    height: 4px;
+    background: var(--bg-elevated);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.6rem;
+}
+
+.condition-likelihood-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s ease;
+}
+
+.condition-likelihood-fill.minimal { background: var(--text-muted); }
+.condition-likelihood-fill.low { background: var(--safe); }
+.condition-likelihood-fill.moderate { background: var(--caution); }
+.condition-likelihood-fill.high { background: var(--critical); }
+
+.condition-indicators {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.condition-indicator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.65rem;
+    padding: 0.3rem 0.5rem;
+    background: var(--bg-elevated);
+    border-radius: 4px;
+}
+
+.indicator-marker {
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.indicator-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin-left: 0.5rem;
+}
+
+.indicator-value.high { color: var(--critical); }
+.indicator-value.moderate { color: var(--caution); }
+.indicator-value.low { color: var(--safe); }
+
+.condition-note {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    font-style: italic;
+}
+
+.condition-category {
+    font-size: 0.5rem;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.15rem;
+}
+
+/* Disclaimer */
+.neuro-disclaimer {
+    margin-top: 1.25rem;
+    padding: 0.75rem;
+    background: rgba(255, 145, 0, 0.08);
+    border: 1px solid rgba(255, 145, 0, 0.2);
+    border-radius: var(--radius-sm);
+    font-size: 0.6rem;
+    color: var(--elevated);
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    text-align: center;
+}
+
 /* Responsive */
 @media (min-width: 768px) {
     .camera-controls, .video-controls {

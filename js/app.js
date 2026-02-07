@@ -61,11 +61,21 @@
     const thresholdElevated = $('threshold-elevated');
     const thresholdCritical = $('threshold-critical');
 
+    // Neuro panel
+    const neuroPanel = $('neuro-panel');
+    const neuroBody = $('neuro-body');
+    const neuroBiometrics = $('neuro-biometrics');
+    const neuroConditions = $('neuro-conditions');
+    const neuroDisclaimer = $('neuro-disclaimer');
+    const neuroTimestamp = $('neuro-timestamp');
+    const btnCloseNeuro = $('btn-close-neuro');
+
     // ── Initialize Modules ──
     const threatEngine = new ThreatEngine();
     const camera = new CameraManager(cameraFeed);
     const scanner = new Scanner(cameraFeed, overlayCanvas, threatEngine);
     const videoAnalyzer = new VideoAnalyzer(videoPlayer, videoOverlayCanvas, threatEngine);
+    const neuroAnalyzer = new NeuroAnalyzer();
 
     const circumference = 2 * Math.PI * 54; // progress ring circumference
 
@@ -151,6 +161,8 @@
         endScanUI();
         vibrate([100, 50, 100]);
         displayResults(results);
+        // Trigger neuro-psych analysis for each detected person
+        runNeuroAnalysis(results);
     };
 
     function endScanUI() {
@@ -258,6 +270,132 @@
         </div>`;
     }
 
+    // ── Neuro-Psych Analysis ──
+    function runNeuroAnalysis(scanResults) {
+        if (!scanResults || scanResults.length === 0) return;
+
+        const fps = camera.getActualFrameRate() || 30;
+        const allNeuroResults = [];
+
+        scanResults.forEach(r => {
+            const history = threatEngine.frameHistory.get(r.personId);
+            if (history && history.length >= 10) {
+                const neuroResult = neuroAnalyzer.analyze(history, fps);
+                neuroResult.personId = r.personId;
+                neuroResult.threatLevel = r.threatLevel;
+                allNeuroResults.push(neuroResult);
+            }
+        });
+
+        if (allNeuroResults.length > 0) {
+            displayNeuroResults(allNeuroResults);
+        }
+    }
+
+    function displayNeuroResults(neuroResults) {
+        neuroTimestamp.textContent = new Date().toLocaleTimeString();
+
+        let html = '';
+        neuroResults.forEach(nr => {
+            html += buildNeuroSection(nr);
+        });
+
+        neuroBody.innerHTML = html;
+        neuroPanel.classList.remove('hidden');
+    }
+
+    function buildNeuroSection(nr) {
+        const bio = nr.biometrics;
+
+        // Biometrics grid
+        const bioItems = [
+            { label: 'BLINK RATE', value: bio.blinkRate, unit: 'blinks/min', status: bio.blinkRate < 13 ? (bio.blinkRate < 8 ? 'critical' : 'warning') : (bio.blinkRate > 28 ? 'warning' : 'normal') },
+            { label: 'EXPR RANGE', value: bio.expressionRange, unit: '% range', status: bio.expressionRange < 20 ? 'alert' : (bio.expressionRange < 35 ? 'warning' : 'normal') },
+            { label: 'TREMOR', value: bio.microTremorScore, unit: 'score', status: bio.microTremorScore > 30 ? 'critical' : (bio.microTremorScore > 15 ? 'warning' : 'normal') },
+            { label: 'TREMOR FREQ', value: bio.tremorFreqEstimate, unit: 'Hz', status: (bio.tremorFreqEstimate >= 3.5 && bio.tremorFreqEstimate <= 6.5 && bio.microTremorScore > 10) ? 'alert' : 'normal' },
+            { label: 'VOLATILITY', value: bio.expressionVolatility, unit: '%', status: bio.expressionVolatility > 55 ? 'alert' : (bio.expressionVolatility > 35 ? 'warning' : 'normal') },
+            { label: 'PSYCHOMOTOR', value: bio.psychomotorIndex, unit: 'index', status: bio.psychomotorIndex < 30 ? 'alert' : (bio.psychomotorIndex > 70 ? 'warning' : 'normal') },
+            { label: 'GAZE STBL', value: bio.gazeStability, unit: '%', status: bio.gazeStability < 40 ? 'alert' : (bio.gazeStability < 60 ? 'warning' : 'normal') },
+            { label: 'AFFECT CONG', value: bio.affectCongruence, unit: '%', status: bio.affectCongruence < 50 ? 'alert' : (bio.affectCongruence < 70 ? 'warning' : 'normal') },
+            { label: 'BLINK REG', value: bio.blinkRegularity, unit: '%', status: bio.blinkRegularity < 40 ? 'warning' : 'normal' }
+        ];
+
+        let bioHtml = `<div class="neuro-section-header" style="font-size:0.7rem;font-weight:700;letter-spacing:2px;color:var(--accent);margin-bottom:0.75rem;text-transform:uppercase;">${nr.personId} — NEURO-PSYCH ANALYSIS</div>`;
+        bioHtml += '<div class="neuro-biometrics">';
+        bioItems.forEach(item => {
+            bioHtml += `
+                <div class="bio-stat">
+                    <div class="bio-stat-label">${item.label}</div>
+                    <div class="bio-stat-value ${item.status}">${item.value}</div>
+                    <div class="bio-stat-unit">${item.unit}</div>
+                </div>`;
+        });
+        bioHtml += '</div>';
+
+        // Condition cards
+        let condHtml = '<div class="neuro-conditions">';
+        nr.conditions.forEach(cond => {
+            if (cond.indicators.length === 0 && cond.likelihood < 10) return;
+
+            let indicatorsHtml = '';
+            cond.indicators.forEach(ind => {
+                indicatorsHtml += `
+                    <div class="condition-indicator">
+                        <span class="indicator-marker">${ind.marker}</span>
+                        <span class="indicator-value ${ind.severity}">${ind.value}</span>
+                    </div>`;
+            });
+
+            condHtml += `
+                <div class="condition-card ${cond.level}">
+                    <div class="condition-category">${cond.category}</div>
+                    <div class="condition-header">
+                        <span class="condition-name">${cond.condition}</span>
+                        <span class="condition-badge ${cond.level}">${cond.level} ${cond.likelihood}%</span>
+                    </div>
+                    <div class="condition-likelihood-bar">
+                        <div class="condition-likelihood-fill ${cond.level}" style="width:${cond.likelihood}%"></div>
+                    </div>
+                    <div class="condition-indicators">${indicatorsHtml}</div>
+                    <div class="condition-note">${cond.note}</div>
+                </div>`;
+        });
+        condHtml += '</div>';
+
+        // Disclaimer
+        const disclaimerHtml = `<div class="neuro-disclaimer">${nr.disclaimer}</div>`;
+
+        // Scan info
+        const infoHtml = `<div style="margin-top:0.5rem;font-size:0.55rem;color:#555;letter-spacing:1px;text-align:center;">${nr.framesAnalyzed} FRAMES ANALYZED | ${nr.fps} FPS | ${nr.scanDuration.toFixed(1)}s DURATION</div>`;
+
+        return bioHtml + condHtml + disclaimerHtml + infoHtml + '<div style="height:1rem;border-bottom:1px solid var(--border);margin-bottom:1rem;"></div>';
+    }
+
+    function runNeuroAnalysisForVideo(videoResults) {
+        if (!videoResults || videoResults.length === 0) return;
+
+        const fps = 30; // video analysis uses requestAnimationFrame
+        const allNeuroResults = [];
+
+        videoResults.forEach(r => {
+            const history = threatEngine.frameHistory.get(r.personId);
+            if (history && history.length >= 10) {
+                const neuroResult = neuroAnalyzer.analyze(history, fps);
+                neuroResult.personId = r.personId;
+                neuroResult.threatLevel = r.threatLevel;
+                allNeuroResults.push(neuroResult);
+            }
+        });
+
+        if (allNeuroResults.length > 0) {
+            displayNeuroResults(allNeuroResults);
+        }
+    }
+
+    btnCloseNeuro.addEventListener('click', () => {
+        neuroPanel.classList.add('hidden');
+    });
+
     // ── Video Upload ──
     btnVideoUpload.addEventListener('click', () => {
         videoInput.click();
@@ -310,12 +448,14 @@
 
     videoAnalyzer.onAnalysisComplete = (results) => {
         displayVideoResults(results);
+        runNeuroAnalysisForVideo(results);
     };
 
     btnVideoScan.addEventListener('click', async () => {
         videoPlayer.pause();
         const results = await videoAnalyzer.analyzeCurrentFrame();
         displayVideoResults(results);
+        runNeuroAnalysisForVideo(results);
     });
 
     videoScrubber.addEventListener('input', () => {

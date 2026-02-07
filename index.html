@@ -211,11 +211,32 @@
         </div>
     </div>
 
+    <!-- Neuro Analysis Results Panel -->
+    <div id="neuro-panel" class="hidden">
+        <div class="panel-handle"></div>
+        <div class="panel-header">
+            <h2>NEURO-PSYCH ANALYSIS</h2>
+            <span class="scan-timestamp" id="neuro-timestamp"></span>
+            <button id="btn-close-neuro" class="icon-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="neuro-body" id="neuro-body">
+            <!-- Biometrics Summary -->
+            <div class="neuro-biometrics" id="neuro-biometrics"></div>
+            <!-- Condition Cards -->
+            <div class="neuro-conditions" id="neuro-conditions"></div>
+            <!-- Disclaimer -->
+            <div class="neuro-disclaimer" id="neuro-disclaimer"></div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/threat-engine.js"></script>
     <script src="js/camera.js"></script>
     <script src="js/scanner.js"></script>
     <script src="js/video-analyzer.js"></script>
+    <script src="js/neuro-analyzer.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
