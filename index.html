@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Microsenses MINI 2 - Behavioral Vibration Analysis Scanner">
+    <title>Microsenses MINI 2</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- face-api.js for face detection + expression recognition -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-content">
+            <div class="pulse-ring"></div>
+            <div class="loader-logo">M2</div>
+            <h1>MICROSENSES MINI 2</h1>
+            <p class="loader-sub">Behavioral Vibration Analysis</p>
+            <div class="loader-bar">
+                <div class="loader-fill" id="loader-fill"></div>
+            </div>
+            <p class="loader-status" id="loader-status">Initializing neural models...</p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="hidden">
+        <!-- Header -->
+        <header id="header">
+            <div class="header-left">
+                <span class="logo-mark">M2</span>
+                <div class="header-title">
+                    <h1>MICROSENSES</h1>
+                    <span class="header-edition">MINI 2 | VIBRATION ANALYSIS</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="btn-mode-toggle" class="icon-btn" title="Switch Mode">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </button>
+                <button id="btn-settings" class="icon-btn" title="Settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Camera View -->
+        <div id="camera-view" class="view active">
+            <div class="video-container">
+                <video id="camera-feed" autoplay playsinline muted></video>
+                <canvas id="overlay-canvas"></canvas>
+                <!-- Scan Progress Ring -->
+                <div id="scan-progress" class="hidden">
+                    <svg class="progress-ring" viewBox="0 0 120 120">
+                        <circle class="progress-ring-bg" cx="60" cy="60" r="54"/>
+                        <circle class="progress-ring-fill" id="progress-fill" cx="60" cy="60" r="54"/>
+                    </svg>
+                    <span class="progress-text" id="progress-text">0%</span>
+                </div>
+                <!-- Scan Results Overlay -->
+                <div id="scan-results" class="hidden"></div>
+            </div>
+
+            <!-- Camera Controls -->
+            <div class="camera-controls">
+                <button id="btn-flip" class="control-btn" title="Flip Camera">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+                    <span>FLIP</span>
+                </button>
+                <button id="btn-scan" class="control-btn scan-btn" title="Start Scan">
+                    <div class="scan-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 4V1h3M20 1h3v3M1 20v3h3M20 23h3v-3"/>
+                            <circle cx="12" cy="12" r="6"/>
+                        </svg>
+                    </div>
+                    <span>SCAN</span>
+                </button>
+                <button id="btn-video-upload" class="control-btn" title="Upload Video">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                    <span>VIDEO</span>
+                </button>
+            </div>
+            <input type="file" id="video-input" accept="video/*" class="hidden">
+        </div>
+
+        <!-- Video Analysis View -->
+        <div id="video-view" class="view">
+            <div class="video-container">
+                <video id="video-player" playsinline></video>
+                <canvas id="video-overlay-canvas"></canvas>
+                <div id="video-scan-results" class="hidden"></div>
+            </div>
+            <div class="video-controls">
+                <button id="btn-video-back" class="control-btn" title="Back to Camera">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    <span>BACK</span>
+                </button>
+                <button id="btn-video-play" class="control-btn scan-btn" title="Play & Analyze">
+                    <div class="scan-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </div>
+                    <span>ANALYZE</span>
+                </button>
+                <button id="btn-video-scan" class="control-btn" title="Scan Frame">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4V1h3M20 1h3v3M1 20v3h3M20 23h3v-3"/><circle cx="12" cy="12" r="6"/></svg>
+                    <span>FRAME</span>
+                </button>
+            </div>
+            <div class="video-timeline">
+                <input type="range" id="video-scrubber" min="0" max="100" value="0">
+                <div class="timeline-info">
+                    <span id="video-time">0:00</span>
+                    <span id="video-duration">0:00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel (slide-up) -->
+        <div id="results-panel" class="hidden">
+            <div class="panel-handle" id="panel-handle"></div>
+            <div class="panel-header">
+                <h2>SCAN RESULTS</h2>
+                <span class="scan-timestamp" id="scan-timestamp"></span>
+                <button id="btn-close-panel" class="icon-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="panel-body" id="panel-body">
+                <!-- Dynamically populated with per-person results -->
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>SETTINGS</h2>
+                    <button id="btn-close-settings" class="icon-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <h3>Scan Duration</h3>
+                        <div class="setting-row">
+                            <input type="range" id="scan-duration" min="3" max="5" value="3" step="1">
+                            <span id="scan-duration-label">3s</span>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <h3>Detection Sensitivity</h3>
+                        <div class="setting-row">
+                            <input type="range" id="sensitivity" min="1" max="10" value="7" step="1">
+                            <span id="sensitivity-label">7</span>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <h3>Display Options</h3>
+                        <label class="toggle-row">
+                            <span>Show Confidence Scores</span>
+                            <input type="checkbox" id="show-scores" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <label class="toggle-row">
+                            <span>Show Facial Landmarks</span>
+                            <input type="checkbox" id="show-landmarks">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <label class="toggle-row">
+                            <span>Vibration Feedback</span>
+                            <input type="checkbox" id="vibration-feedback" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <label class="toggle-row">
+                            <span>Audio Alerts</span>
+                            <input type="checkbox" id="audio-alerts">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-group">
+                        <h3>Threat Thresholds</h3>
+                        <div class="threshold-row">
+                            <span class="threat-dot caution"></span>
+                            <span>Caution</span>
+                            <input type="number" id="threshold-caution" value="35" min="10" max="90">
+                            <span>%</span>
+                        </div>
+                        <div class="threshold-row">
+                            <span class="threat-dot elevated"></span>
+                            <span>Elevated</span>
+                            <input type="number" id="threshold-elevated" value="55" min="10" max="90">
+                            <span>%</span>
+                        </div>
+                        <div class="threshold-row">
+                            <span class="threat-dot critical"></span>
+                            <span>Critical</span>
+                            <input type="number" id="threshold-critical" value="75" min="10" max="90">
+                            <span>%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/threat-engine.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/scanner.js"></script>
+    <script src="js/video-analyzer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
