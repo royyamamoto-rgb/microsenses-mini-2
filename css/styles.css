@@ -2,6 +2,82 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; }
 
+/* App wrapper — hidden until authenticated */
+.app-wrapper { display: none; }
+.app-wrapper.authenticated { display: block; }
+
+/* Password Gate */
+.password-gate {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.password-gate.hidden { display: none; }
+.password-card {
+  background: #16213e;
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  text-align: center;
+}
+.password-card h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #4a9eff, #00d4aa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.password-card p {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 24px;
+}
+.password-card input {
+  width: 100%;
+  padding: 14px 16px;
+  background: #1a1a2e;
+  border: 2px solid #2d3a4f;
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.password-card input:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+.password-card .error {
+  color: #f44336;
+  font-size: 13px;
+  margin-bottom: 12px;
+  display: none;
+}
+.password-card .error.show { display: block; }
+.auth-btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #4a9eff, #2d5a87);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.auth-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(74, 158, 255, 0.3);
+}
+
 /* Header */
 .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
 .header h1 { font-size: 22px; font-weight: 600; }
