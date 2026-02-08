@@ -1,4 +1,4 @@
-const CACHE_NAME = 'microsenses-mini2-v2';
+const CACHE_NAME = 'microsenses-mini2-v4';
 const ASSETS = [
     '/',
     '/index.html',
