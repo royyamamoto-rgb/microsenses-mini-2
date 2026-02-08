@@ -182,8 +182,24 @@ async function startCamera() {
         }
     } catch (e) { /* advanced constraints not supported, continue */ }
 
-    const settings = stream.getVideoTracks()[0]?.getSettings?.() || {};
-    console.log('[Camera] Active:', `${settings.width}x${settings.height}@${settings.frameRate}fps`, settings.facingMode || facingMode);
+    // Handle camera stream ending unexpectedly (permission revoked, device disconnected)
+    const track = stream.getVideoTracks()[0];
+    if (track) {
+        track.onended = () => {
+            console.warn('[Camera] Track ended unexpectedly');
+            if (running) {
+                setStatus('Camera disconnected. Stopping scan.', 'error');
+                running = false;
+                stream = null;
+                timerSection.style.display = 'none';
+                btnStart.disabled = false;
+                btnUpload.disabled = false;
+                btnStop.disabled = true;
+            }
+        };
+        const settings = track.getSettings ? track.getSettings() : {};
+        console.log('[Camera] Active:', `${settings.width}x${settings.height}@${settings.frameRate}fps`, settings.facingMode || facingMode);
+    }
 
     return true;
 }
@@ -461,6 +477,11 @@ async function processFrame() {
 
 // ── Duration Modal ──
 function showDurationModal() {
+    // Sync scanDuration from whichever button is selected (prevents stale state after video upload)
+    const selectedBtn = document.querySelector('.duration-btn.selected');
+    if (selectedBtn) {
+        scanDuration = parseInt(selectedBtn.dataset.duration);
+    }
     durationModal.classList.add('show');
 }
 function hideDurationModal() {
@@ -529,11 +550,21 @@ function stopScan() {
 function completeScan() {
     running = false;
 
+    // Stop live camera stream
     if (stream) {
         stream.getTracks().forEach(t => t.stop());
         stream = null;
     }
     video.srcObject = null;
+
+    // Stop video upload playback
+    if (!video.paused) video.pause();
+    if (video.src && video.src.startsWith('blob:')) {
+        URL.revokeObjectURL(video.src);
+        video.removeAttribute('src');
+        video.load(); // Reset the video element
+    }
+
     ctx.clearRect(0, 0, overlay.width, overlay.height);
     lastLandmarks = null;
 
@@ -686,6 +717,13 @@ fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Stop any live camera stream first
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+    }
+    video.srcObject = null; // MUST clear srcObject so video.src is used
+
     scanType = 'Upload';
     setStatus('Loading video...', 'loading');
 
@@ -710,7 +748,6 @@ fileInput.addEventListener('change', async (e) => {
         threatEngine.clearAll();
         personTracker.clear();
         nextPersonId = 1;
-        scanDuration = 0; // continuous for video
 
         timerSection.style.display = 'block';
         btnStart.disabled = true;
@@ -719,7 +756,20 @@ fileInput.addEventListener('change', async (e) => {
         resultsPanel.classList.remove('active');
 
         setStatus('Analyzing video...', 'scanning');
-        await video.play();
+        try {
+            await video.play();
+        } catch (playErr) {
+            console.warn('Video play failed:', playErr);
+            await new Promise(r => setTimeout(r, 300));
+            try { await video.play(); } catch (e) {
+                setStatus('Could not play video file.', 'error');
+                running = false;
+                btnStart.disabled = false;
+                btnUpload.disabled = false;
+                btnStop.disabled = true;
+                return;
+            }
+        }
         processVideoFrame();
     };
 
@@ -740,6 +790,18 @@ async function processVideoFrame() {
     frameCount++;
 
     try {
+        // Guard: ensure video has valid frame data
+        if (video.readyState < 2 || video.videoWidth === 0) {
+            if (running) requestAnimationFrame(processVideoFrame);
+            return;
+        }
+
+        // Sync overlay size
+        if (overlay.width !== video.videoWidth || overlay.height !== video.videoHeight) {
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+        }
+
         const detections = await faceapi
             .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4 }))
             .withFaceLandmarks(true)
@@ -757,7 +819,9 @@ async function processVideoFrame() {
 
         updatePersonChips();
         drawRealtimeChart();
-    } catch (err) { /* continue */ }
+    } catch (err) {
+        console.warn('Video frame error:', err.message);
+    }
 
     if (running) {
         requestAnimationFrame(processVideoFrame);

@@ -1,12 +1,9 @@
-const CACHE_NAME = 'microsenses-mini2-v4';
+const CACHE_NAME = 'microsenses-mini2-v5';
 const ASSETS = [
     '/',
     '/index.html',
     '/css/styles.css',
     '/js/app.js',
-    '/js/camera.js',
-    '/js/scanner.js',
-    '/js/video-analyzer.js',
     '/js/threat-engine.js',
     '/js/neuro-analyzer.js',
     '/manifest.json',
