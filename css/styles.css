@@ -250,7 +250,95 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .duration-btn:hover { border-color: #4a9eff; }
 .duration-btn.selected { border-color: #4a9eff; background: #4a9eff; }
 
-/* Safe area */
+/* ── Mode Selection Modal ── */
+.mode-modal { max-width: 520px; }
+.mode-options { display: flex; gap: 16px; margin-bottom: 8px; }
+@media (max-width: 600px) { .mode-options { flex-direction: column; } }
+.mode-btn {
+    flex: 1; padding: 24px 16px; border: 2px solid #2d3a4f; border-radius: 16px;
+    background: #16213e; color: white; cursor: pointer; text-align: center; transition: all 0.3s;
+}
+.mode-btn:hover { border-color: #4a9eff; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(74,158,255,0.2); }
+.mode-icon { font-size: 36px; margin-bottom: 12px; }
+.mode-title { font-size: 14px; font-weight: 700; letter-spacing: 2px; margin-bottom: 8px; }
+.mode-desc { font-size: 11px; color: #888; line-height: 1.5; }
+
+/* ── Mode Badge ── */
+.mode-badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 10px;
+    font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;
+}
+.mode-badge.detection { background: rgba(244,67,54,0.2); color: #f44336; }
+.mode-badge.deception { background: rgba(224,64,251,0.2); color: #e040fb; }
+
+/* ── Deception Metrics ── */
+.deception-metrics { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 600px) { .deception-metrics { grid-template-columns: repeat(2, 1fr); } }
+.metric-card.deception-prob .value { color: #e040fb; }
+.metric-card.concealment .value { color: #ff6b6b; }
+.metric-card.cognitive-load .value { color: #ffc107; }
+.metric-card.truthfulness .value { color: #4caf50; }
+
+/* ── Live Indicator Chips ── */
+.deception-indicators { margin-top: 16px; padding: 12px; background: #1e2a3f; border-radius: 8px; }
+.indicator-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ind-chip {
+    padding: 4px 10px; border-radius: 4px; font-size: 10px;
+    font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+}
+.ind-chip.flash { background: rgba(224,64,251,0.25); color: #e040fb; animation: pulse 0.5s 3; }
+.ind-chip.warn { background: rgba(255,193,7,0.15); color: #ffc107; }
+.ind-chip.alert { background: rgba(244,67,54,0.15); color: #f44336; }
+.ind-chip.ok { background: rgba(76,175,80,0.15); color: #4caf50; }
+.ind-chip.neutral { background: rgba(255,255,255,0.05); color: #666; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+/* ── Deception Report Cards ── */
+.deception-summary-card { background: #1e2a3f; border-radius: 12px; padding: 20px; margin-bottom: 16px; border-left: 4px solid #e040fb; }
+.deception-summary-card.low { border-left-color: #4caf50; }
+.deception-summary-card.moderate { border-left-color: #ffc107; }
+.deception-summary-card.high { border-left-color: #f44336; }
+.deception-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.deception-title { font-size: 14px; font-weight: 700; letter-spacing: 2px; }
+.deception-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.deception-badge.low { background: rgba(76,175,80,0.15); color: #4caf50; }
+.deception-badge.moderate { background: rgba(255,193,7,0.15); color: #ffc107; }
+.deception-badge.high { background: rgba(244,67,54,0.15); color: #f44336; }
+.deception-score-display { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 600px) { .deception-score-display { grid-template-columns: repeat(2, 1fr); } }
+.score-ring { background: #16213e; border-radius: 12px; padding: 16px; text-align: center; }
+.score-value { font-size: 28px; font-weight: 700; color: #e040fb; }
+.score-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+.section-title { font-size: 12px; font-weight: 700; color: #4a9eff; letter-spacing: 2px; text-transform: uppercase; margin: 20px 0 12px; border-bottom: 1px solid #2d3a4f; padding-bottom: 6px; }
+
+.dtype-card { background: #1e2a3f; border-radius: 10px; padding: 14px; margin-bottom: 10px; border-left: 4px solid #555; }
+.dtype-card.active { border-left-color: #e040fb; }
+.dtype-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.dtype-name { font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+.dtype-score { font-size: 18px; font-weight: 700; color: #e040fb; }
+.dtype-desc { font-size: 10px; color: #666; margin-bottom: 8px; font-style: italic; }
+.dtype-indicators { display: flex; flex-direction: column; gap: 3px; }
+.dtype-ind { font-size: 11px; padding: 3px 8px; background: #16213e; border-radius: 4px; display: flex; justify-content: space-between; }
+.dtype-ind .severity { font-weight: 600; }
+.dtype-ind .severity.high { color: #f44336; }
+.dtype-ind .severity.moderate { color: #ffc107; }
+.dtype-ind .severity.low { color: #4caf50; }
+
+.micro-log { margin-top: 12px; }
+.micro-item { font-size: 11px; padding: 6px 10px; background: #16213e; border-radius: 4px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+.micro-type { color: #e040fb; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+.micro-time { color: #666; font-size: 10px; }
+.micro-intensity { font-weight: 700; }
+
+.blink-card, .asymmetry-card { background: #1e2a3f; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+.blink-grid, .asym-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+@media (max-width: 600px) { .blink-grid, .asym-grid { grid-template-columns: repeat(2, 1fr); } }
+.blink-item, .asym-item { background: #16213e; border-radius: 6px; padding: 8px; text-align: center; }
+.blink-item .b-label, .asym-item .a-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.blink-item .b-val, .asym-item .a-val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+/* ── Safe area ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .main-container { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }

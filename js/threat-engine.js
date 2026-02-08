@@ -20,6 +20,14 @@ class ThreatEngine {
         this.thresholds = { caution, elevated, critical };
     }
 
+    setMode(mode) {
+        if (mode === 'detection') {
+            this.maxHistoryFrames = 150;  // 5 seconds for detection (fast turnover)
+        } else {
+            this.maxHistoryFrames = 900;  // 30 seconds for deception (longer history)
+        }
+    }
+
     /**
      * Process a single detection frame for a person
      * @param {string} personId - Unique ID for this tracked person
@@ -429,6 +437,11 @@ class ThreatEngine {
 
         if (expressions.peaks.angry > 0.7) indicators.push({ label: 'ANGER SPIKE', color: 'red' });
         if (expressions.peaks.fearful > 0.6) indicators.push({ label: 'FEAR RESPONSE', color: 'yellow' });
+
+        // Detection-mode specific indicators
+        if (aggression > 70 && badIntent > 60) indicators.push({ label: 'VIOLENT TENDENCY', color: 'red' });
+        if (stability < 25 && stress > 50) indicators.push({ label: 'MENTALLY UNSTABLE', color: 'red' });
+        if (aggression > 50 && patterns.patterns.escalating) indicators.push({ label: 'HOSTILE INTENT', color: 'red' });
 
         if (stability < 30) indicators.push({ label: 'UNSTABLE', color: 'orange' });
         if (stability > 85 && aggression < 20 && deception < 20) indicators.push({ label: 'COMPOSED', color: 'green' });

@@ -31,7 +31,10 @@
         <h1>Microsenses MINI 2</h1>
         <div class="subtitle">Behavioral Vibration & Threat Analysis System</div>
       </div>
-      <button id="btn-flip" class="flip-btn" title="Flip Camera">&#x21C5; Flip</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="modeBadge" class="mode-badge" style="display:none;"></span>
+        <button id="btn-flip" class="flip-btn" title="Flip Camera">&#x21C5; Flip</button>
+      </div>
     </div>
 
     <div class="main-container">
@@ -59,8 +62,8 @@
           </div>
         </div>
 
-        <!-- Real-time Metrics -->
-        <div class="realtime-metrics">
+        <!-- Detection Mode Real-time Metrics -->
+        <div class="realtime-metrics" id="detectionMetrics">
           <div class="metric-card energy">
             <div class="label">Energy (E)</div>
             <div class="value" id="rtEnergy">--</div>
@@ -75,7 +78,27 @@
           </div>
         </div>
 
-        <div class="formula-box">
+        <!-- Deception Mode Real-time Metrics (hidden by default) -->
+        <div class="realtime-metrics deception-metrics" id="deceptionMetrics" style="display:none;">
+          <div class="metric-card deception-prob">
+            <div class="label">Deception</div>
+            <div class="value" id="rtDeception">--</div>
+          </div>
+          <div class="metric-card concealment">
+            <div class="label">Concealment</div>
+            <div class="value" id="rtConcealment">--</div>
+          </div>
+          <div class="metric-card cognitive-load">
+            <div class="label">Cog. Load</div>
+            <div class="value" id="rtCogLoad">--</div>
+          </div>
+          <div class="metric-card truthfulness">
+            <div class="label">Truthful</div>
+            <div class="value" id="rtTruthfulness">--</div>
+          </div>
+        </div>
+
+        <div class="formula-box" id="formulaBox">
           <strong style="color:#4a9eff;">E = V&sup2; &times; F &times; k</strong><br>
           Energy reflects micro-muscle activity. Higher values indicate increased facial tension and mental activation.
         </div>
@@ -85,22 +108,31 @@
           <canvas id="realtimeChart" style="width:100%;height:80px;background:#1e2a3f;border-radius:8px;"></canvas>
         </div>
 
-        <!-- Persons Detected -->
+        <!-- Persons Detected (Detection mode) -->
         <div id="personsDetected" class="persons-detected" style="display:none;">
           <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px;">PERSONS DETECTED</div>
           <div id="personChips" class="person-chips"></div>
+        </div>
+
+        <!-- Deception Indicator Flashes (Deception mode) -->
+        <div id="deceptionIndicators" class="deception-indicators" style="display:none;">
+          <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px;">LIVE INDICATORS</div>
+          <div id="liveIndicatorChips" class="indicator-chips"></div>
         </div>
       </div>
 
       <!-- Right Panel - Results Report -->
       <div class="results-panel" id="resultsPanel">
         <div class="report-header">
-          <div class="report-title">Behavioral Vibration & Threat Analysis Report</div>
-          <div class="report-subtitle">Comprehensive Psycho-Physiological Assessment</div>
+          <div class="report-title" id="reportTitle">Behavioral Vibration & Threat Analysis Report</div>
+          <div class="report-subtitle" id="reportSubtitle">Comprehensive Psycho-Physiological Assessment</div>
         </div>
 
-        <!-- Per-Person Threat Results -->
+        <!-- Per-Person Threat Results (Detection mode) -->
         <div id="threatResultsSection"></div>
+
+        <!-- Deception Results (Deception mode) -->
+        <div id="deceptionResultsSection" style="display:none;"></div>
 
         <!-- Scan Info -->
         <div class="scan-info">
@@ -117,7 +149,7 @@
             <div class="scan-info-value" id="scanPersons">--</div>
           </div>
           <div class="scan-info-item">
-            <div class="scan-info-label">Type</div>
+            <div class="scan-info-label">Mode</div>
             <div class="scan-info-value" id="scanType">--</div>
           </div>
         </div>
@@ -137,18 +169,39 @@
       </div>
     </div>
 
-    <!-- Duration Selection Modal -->
+    <!-- Mode Selection Modal (Step 1) -->
+    <div id="modeModal" class="modal-overlay">
+      <div class="modal mode-modal">
+        <h2>Select Analysis Mode</h2>
+        <p>Choose the type of behavioral analysis to perform</p>
+        <div class="mode-options">
+          <button class="mode-btn" data-mode="detection">
+            <div class="mode-icon">&#x1F6E1;&#xFE0F;</div>
+            <div class="mode-title">DETECTION</div>
+            <div class="mode-desc">Multi-person crowd screening. Flags hostile intent, aggression, instability, and threat levels in real-time.</div>
+          </button>
+          <button class="mode-btn" data-mode="deception">
+            <div class="mode-icon">&#x1F50D;</div>
+            <div class="mode-title">DECEPTION INTERVIEW</div>
+            <div class="mode-desc">Single-person focused analysis. Detects lying, concealment, and deceptive behavior patterns.</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Duration Selection Modal (Step 2 - Deception mode only) -->
     <div id="durationModal" class="modal-overlay">
       <div class="modal">
-        <h2>Scan Duration</h2>
-        <p>Select the duration for behavioral vibration analysis</p>
+        <h2>Interview Duration</h2>
+        <p>Select the duration for deception analysis</p>
         <div class="duration-options">
+          <button class="duration-btn" data-duration="30">30 sec</button>
+          <button class="duration-btn selected" data-duration="60">60 sec</button>
+          <button class="duration-btn" data-duration="120">2 min</button>
           <button class="duration-btn" data-duration="0">Continuous</button>
-          <button class="duration-btn" data-duration="15">15 sec</button>
-          <button class="duration-btn selected" data-duration="30">30 sec</button>
-          <button class="duration-btn" data-duration="60">60 sec</button>
         </div>
-        <button id="confirmStart" class="btn btn-primary" style="width:100%;">Start Analysis</button>
+        <button id="confirmStart" class="btn btn-primary" style="width:100%;">Start Interview</button>
+        <button id="backToMode" class="btn btn-secondary" style="width:100%;margin-top:8px;">Back</button>
       </div>
     </div>
   </div>
@@ -192,6 +245,7 @@
   <!-- App modules -->
   <script src="js/threat-engine.js"></script>
   <script src="js/neuro-analyzer.js"></script>
+  <script src="js/deception-engine.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

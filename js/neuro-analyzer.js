@@ -810,6 +810,35 @@ class NeuroAnalyzer {
             disclaimer: 'INSUFFICIENT DATA — Longer scan required for neuro-psychological analysis.'
         };
     }
+
+    /**
+     * Deception-focused analysis returning only deception-relevant biometrics
+     */
+    analyzeForDeception(frameHistory, fps = 30) {
+        if (!frameHistory || frameHistory.length < 10) return null;
+
+        const blinkAnalysis = this._analyzeBlinkPatterns(frameHistory, fps);
+        const expressionDynamics = this._analyzeExpressionDynamics(frameHistory);
+        const affectCongruence = this._analyzeAffectCongruence(frameHistory);
+        const gazePatterns = this._analyzeGazePatterns(frameHistory);
+        const psychomotor = this._analyzePsychomotorSpeed(frameHistory, fps);
+
+        return {
+            blinkRate: blinkAnalysis.blinksPerMinute,
+            blinkRegularity: blinkAnalysis.regularity,
+            blinkIntervals: blinkAnalysis.intervals,
+            avgBlinkDuration: blinkAnalysis.avgBlinkDuration,
+            expressionVolatility: expressionDynamics.volatility,
+            expressionChangeRate: expressionDynamics.changeRate,
+            affectCongruence: affectCongruence.score,
+            microLeakRate: affectCongruence.microLeakRate,
+            gazeStability: gazePatterns.stability,
+            gazeDrift: gazePatterns.driftScore,
+            scanRate: gazePatterns.scanRate,
+            psychomotorIndex: psychomotor.index,
+            psychomotorSpeed: psychomotor.speed
+        };
+    }
 }
 
 window.NeuroAnalyzer = NeuroAnalyzer;
