@@ -57,6 +57,9 @@ const ENERGY_CONSTANT = 0.001;
 const threatEngine = new ThreatEngine();
 const neuroAnalyzer = new NeuroAnalyzer();
 const deceptionEngine = new DeceptionEngine();
+const voiceStressEngine = new VoiceStressEngine();
+let micPermissionGranted = false;
+let vsaAvailable = false;
 
 // Person tracking
 let personTracker = new Map();
@@ -101,11 +104,12 @@ async function startCamera() {
         video.srcObject = null;
     }
 
+    const wantAudio = (currentMode === 'deception');
     const constraintsList = [
-        { video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }, audio: false },
-        { video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-        { video: { facingMode: facingMode }, audio: false },
-        { video: true, audio: false }
+        { video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }, audio: wantAudio },
+        { video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: wantAudio },
+        { video: { facingMode: facingMode }, audio: wantAudio },
+        { video: true, audio: wantAudio }
     ];
 
     let lastErr = null;
@@ -119,6 +123,24 @@ async function startCamera() {
         }
     }
 
+    // If audio was requested but all attempts failed, retry video-only
+    if (!stream && wantAudio) {
+        console.warn('Audio+video failed, falling back to video-only');
+        micPermissionGranted = false;
+        const videoOnlyList = [
+            { video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }, audio: false },
+            { video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+            { video: { facingMode }, audio: false },
+            { video: true, audio: false }
+        ];
+        for (const constraints of videoOnlyList) {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                break;
+            } catch (err) { lastErr = err; }
+        }
+    }
+
     if (!stream) {
         const errName = lastErr ? lastErr.name : 'Unknown';
         if (errName === 'NotAllowedError') setStatus('Camera permission denied.', 'error');
@@ -126,6 +148,11 @@ async function startCamera() {
         else setStatus('Camera error: ' + (lastErr ? lastErr.message : 'unknown'), 'error');
         return false;
     }
+
+    // Check if we got audio tracks
+    const audioTracks = stream.getAudioTracks();
+    micPermissionGranted = audioTracks.length > 0;
+    vsaAvailable = micPermissionGranted;
 
     video.srcObject = stream;
     await new Promise((resolve) => {
@@ -424,7 +451,7 @@ function updatePersonChips() {
 }
 
 // ── Live Deception Indicators ──
-function updateDeceptionIndicators(assess) {
+function updateDeceptionIndicators(assess, vsaAssess) {
     const el = document.getElementById('liveIndicatorChips');
     let html = '';
 
@@ -434,7 +461,21 @@ function updateDeceptionIndicators(assess) {
     if (assess.asymmetryHigh) html += '<span class="ind-chip alert">FACIAL ASYMMETRY</span>';
     if (assess.expressionIncongruence) html += '<span class="ind-chip alert">INCONGRUENT EXPRESSION</span>';
     if (assess.cognitiveLoad > 70) html += '<span class="ind-chip alert">HIGH COGNITIVE LOAD</span>';
-    if (assess.deceptionProbability < 20 && !assess.microExpressionDetected) html += '<span class="ind-chip ok">TRUTHFUL BASELINE</span>';
+
+    // VSA indicators
+    if (vsaAssess) {
+        if (vsaAssess.voiceStress >= 70) html += '<span class="ind-chip voice-alert">VOICE STRESS HIGH</span>';
+        else if (vsaAssess.voiceStress >= 40) html += '<span class="ind-chip voice">VOICE STRESS ELEVATED</span>';
+        if (vsaAssess.f0Deviation > 15) html += '<span class="ind-chip voice">PITCH DEVIATION</span>';
+        if (vsaAssess.tremorScore >= 60) html += '<span class="ind-chip voice-alert">VOCAL TREMOR</span>';
+        if (vsaAssess.jitter > 2.0) html += '<span class="ind-chip voice">VOICE JITTER</span>';
+        if (vsaAssess.isSpeaking && vsaAssess.voiceStress < 20) html += '<span class="ind-chip ok">VOCAL BASELINE NORMAL</span>';
+    }
+
+    if (assess.deceptionProbability < 20 && !assess.microExpressionDetected &&
+        (!vsaAssess || vsaAssess.voiceStress < 20)) {
+        html += '<span class="ind-chip ok">TRUTHFUL BASELINE</span>';
+    }
     if (html === '') html = '<span class="ind-chip neutral">MONITORING...</span>';
 
     el.innerHTML = html;
@@ -514,13 +555,34 @@ function processDeceptionFrame(detections, now) {
     const metrics = computeVibrationMetrics(subject.landmarks, now);
     vibrationData.push({ vibration: metrics.vibration, frequency: metrics.frequency, energy: metrics.energy });
 
-    const assess = deceptionEngine._quickDeceptionAssess(personId);
+    // Voice stress analysis
+    let vsaAssess = null;
+    if (vsaAvailable && voiceStressEngine.isActive) {
+        voiceStressEngine.processAudioFrame();
+        vsaAssess = voiceStressEngine._quickAssess();
+        const vsEl = document.getElementById('rtVoiceStress');
+        vsEl.textContent = vsaAssess.voiceStress + '%';
+        vsEl.style.color = vsaAssess.voiceStress >= 70 ? '#f44336' :
+                           vsaAssess.voiceStress >= 40 ? '#ff9800' : '#00bcd4';
+
+        if (!vsaAssess.isSpeaking) {
+            updateMicStatus('no-speech', 'Microphone: Active — No speech detected');
+        } else {
+            updateMicStatus('active', vsaAssess.hasBaseline ?
+                'Microphone: Analyzing voice stress' :
+                'Microphone: Establishing voice baseline...');
+        }
+    } else if (currentMode === 'deception') {
+        document.getElementById('rtVoiceStress').textContent = 'N/A';
+    }
+
+    const assess = deceptionEngine._quickDeceptionAssess(personId, vsaAssess);
     document.getElementById('rtDeception').textContent = assess.deceptionProbability + '%';
     document.getElementById('rtConcealment').textContent = assess.concealmentScore + '%';
     document.getElementById('rtCogLoad').textContent = assess.cognitiveLoad + '%';
     document.getElementById('rtTruthfulness').textContent = assess.truthfulness + '%';
 
-    updateDeceptionIndicators(assess);
+    updateDeceptionIndicators(assess, vsaAssess);
 }
 
 // ── Scan Processing ──
@@ -646,6 +708,7 @@ function setupDetectionUI() {
     document.getElementById('deceptionMetrics').style.display = 'none';
     document.getElementById('deceptionIndicators').style.display = 'none';
     document.getElementById('formulaBox').style.display = 'block';
+    document.getElementById('micStatus').style.display = 'none';
     modeBadge.style.display = 'inline-block';
     modeBadge.textContent = 'DETECTION';
     modeBadge.className = 'mode-badge detection';
@@ -656,9 +719,22 @@ function setupDeceptionUI() {
     document.getElementById('deceptionMetrics').style.display = 'grid';
     document.getElementById('deceptionIndicators').style.display = 'block';
     document.getElementById('formulaBox').style.display = 'none';
+    document.getElementById('micStatus').style.display = 'flex';
     modeBadge.style.display = 'inline-block';
     modeBadge.textContent = 'DECEPTION INTERVIEW';
     modeBadge.className = 'mode-badge deception';
+}
+
+function updateMicStatus(state, text) {
+    const micStatus = document.getElementById('micStatus');
+    const micText = document.getElementById('micText');
+    if (currentMode === 'deception') {
+        micStatus.style.display = 'flex';
+        micStatus.className = 'mic-status ' + state;
+        micText.textContent = text;
+    } else {
+        micStatus.style.display = 'none';
+    }
 }
 
 // ── Start Scan ──
@@ -681,11 +757,28 @@ async function startScan() {
     scanStartTime = performance.now();
     threatEngine.clearAll();
     deceptionEngine.clearAll();
+    voiceStressEngine.clearAll();
     personTracker.clear();
     nextPersonId = 1;
 
     if (currentMode === 'detection') setupDetectionUI();
     else setupDeceptionUI();
+
+    // Initialize VSA for deception mode
+    if (currentMode === 'deception' && micPermissionGranted && stream) {
+        try {
+            await voiceStressEngine.initAudioContext(stream);
+            vsaAvailable = true;
+            updateMicStatus('active', 'Microphone: Active — Analyzing voice');
+        } catch (e) {
+            console.warn('VSA init failed:', e);
+            vsaAvailable = false;
+            updateMicStatus('denied', 'Microphone: Audio analysis unavailable');
+        }
+    } else if (currentMode === 'deception') {
+        vsaAvailable = false;
+        updateMicStatus('denied', 'Microphone: Permission denied — facial analysis only');
+    }
 
     timerSection.style.display = 'block';
     if (scanDuration > 0) timerValue.textContent = formatTimer(scanDuration * 1000);
@@ -729,6 +822,9 @@ function completeScan() {
 
     ctx.clearRect(0, 0, overlay.width, overlay.height);
     lastLandmarks = null;
+
+    // Clean up VSA
+    document.getElementById('micStatus').style.display = 'none';
 
     timerSection.style.display = 'none';
     btnStart.disabled = false;
@@ -792,7 +888,16 @@ function completeDetectionScan() {
 
 function completeDeceptionScan() {
     const personId = 'SUBJECT';
-    const deceptionResult = deceptionEngine.fullAnalysis(personId);
+
+    // Get VSA full analysis before destroying
+    let vsaResult = null;
+    if (vsaAvailable && voiceStressEngine.isActive) {
+        vsaResult = voiceStressEngine.fullAnalysis();
+    }
+    voiceStressEngine.destroy();
+    vsaAvailable = false;
+
+    const deceptionResult = deceptionEngine.fullAnalysis(personId, vsaResult);
     const threatResult = threatEngine.fullAnalysis(personId);
 
     let neuroResult = null;
@@ -808,7 +913,7 @@ function completeDeceptionScan() {
     document.getElementById('neuroSection').style.display = 'none';
     document.getElementById('deceptionResultsSection').style.display = 'block';
 
-    renderDeceptionReport(deceptionResult, threatResult, neuroResult);
+    renderDeceptionReport(deceptionResult, threatResult, neuroResult, vsaResult);
 }
 
 // ── Render Detection Results ──
@@ -889,8 +994,12 @@ function buildNeuroSection(nr) {
 }
 
 // ── Render Deception Report ──
-function renderDeceptionReport(deception, threat, neuro) {
+function renderDeceptionReport(deception, threat, neuro, vsa) {
     const level = deception.deceptionProbability >= 70 ? 'high' : (deception.deceptionProbability >= 40 ? 'moderate' : 'low');
+
+    const vsaRing = vsa && vsa.baselineEstablished
+        ? `<div class="score-ring"><div class="score-value" style="color:#00bcd4">${vsa.voiceStressScore}%</div><div class="score-label">Voice Stress</div></div>`
+        : '';
 
     let html = `
     <div class="deception-summary-card ${level}">
@@ -903,6 +1012,7 @@ function renderDeceptionReport(deception, threat, neuro) {
             <div class="score-ring"><div class="score-value">${deception.truthfulnessIndex}%</div><div class="score-label">Truthfulness</div></div>
             <div class="score-ring"><div class="score-value">${deception.cognitiveLoadAvg}%</div><div class="score-label">Cognitive Load</div></div>
             <div class="score-ring"><div class="score-value">${deception.confidenceLevel}%</div><div class="score-label">Confidence</div></div>
+            ${vsaRing}
         </div>
     </div>`;
 
@@ -947,6 +1057,15 @@ function renderDeceptionReport(deception, threat, neuro) {
         <div class="asym-item"><div class="a-label">Average</div><div class="a-val" style="color:${asym.avgAsymmetry > 25 ? '#f44336' : '#4caf50'}">${asym.avgAsymmetry}%</div></div>
         <div class="asym-item"><div class="a-label">Peak</div><div class="a-val" style="color:${asym.peakAsymmetry > 40 ? '#f44336' : '#ffc107'}">${asym.peakAsymmetry}%</div></div>
     </div></div>`;
+
+    // Voice Stress Analysis
+    if (vsa && vsa.baselineEstablished) {
+        html += '<div class="section-title">VOICE STRESS ANALYSIS</div>';
+        html += buildVSAReportCard(vsa);
+    } else if (vsa && !vsa.baselineEstablished) {
+        html += '<div class="section-title">VOICE STRESS ANALYSIS</div>';
+        html += '<div class="vsa-card"><div class="vsa-header"><span>Voice Stress</span><span style="color:#ff9800;">Insufficient Data</span></div><div style="padding:12px;color:#aaa;font-size:12px;">Baseline could not be established — not enough speech detected. Results require at least 5 seconds of continuous speech.</div></div>';
+    }
 
     // Indicators
     if (deception.indicators.length > 0) {
@@ -1070,6 +1189,66 @@ function drawDeceptionTimelineChart(timeline) {
     });
 }
 
+// ── Build VSA Report Card ──
+function buildVSAReportCard(vsa) {
+    const stressLevel = vsa.voiceStressScore >= 70 ? 'high' : (vsa.voiceStressScore >= 40 ? 'elevated' : '');
+    const stressColor = vsa.voiceStressScore >= 70 ? '#f44336' : (vsa.voiceStressScore >= 40 ? '#ff9800' : '#00bcd4');
+
+    let html = `<div class="vsa-card ${stressLevel}">
+        <div class="vsa-header">
+            <span>Voice Stress Index</span>
+            <span class="vsa-score" style="color:${stressColor}">${vsa.voiceStressScore}%</span>
+        </div>
+        <div class="vsa-grid">`;
+
+    // F0 Fundamental Frequency
+    const f0 = vsa.fundamentalFrequency;
+    html += `<div class="vsa-item"><div class="vsa-label">F0 Baseline</div><div class="vsa-val">${f0.baselineMean} Hz</div></div>`;
+    html += `<div class="vsa-item"><div class="vsa-label">F0 Deviation</div><div class="vsa-val" style="color:${f0.deviationPercent > 15 ? '#f44336' : (f0.deviationPercent > 8 ? '#ff9800' : '#4caf50')}">${f0.deviationPercent}%</div></div>`;
+
+    // Micro-Tremor
+    const tr = vsa.microTremor;
+    html += `<div class="vsa-item"><div class="vsa-label">Micro-Tremor</div><div class="vsa-val" style="color:${tr.tremorScore > 60 ? '#f44336' : (tr.tremorScore > 30 ? '#ff9800' : '#4caf50')}">${tr.tremorScore}%</div></div>`;
+
+    // Voice Quality
+    const vq = vsa.voiceQuality;
+    html += `<div class="vsa-item"><div class="vsa-label">Jitter</div><div class="vsa-val" style="color:${vq.jitter > 3 ? '#f44336' : (vq.jitter > 1.5 ? '#ff9800' : '#4caf50')}">${vq.jitter}%</div></div>`;
+    html += `<div class="vsa-item"><div class="vsa-label">Shimmer</div><div class="vsa-val" style="color:${vq.shimmer > 5 ? '#f44336' : (vq.shimmer > 2.5 ? '#ff9800' : '#4caf50')}">${vq.shimmer}%</div></div>`;
+
+    // Speech Metrics
+    const sp = vsa.speechMetrics;
+    html += `<div class="vsa-item"><div class="vsa-label">Speech Ratio</div><div class="vsa-val">${sp.speechRatio}%</div></div>`;
+
+    html += `</div>`;
+
+    // Spectral analysis line
+    if (vsa.spectralAnalysis) {
+        const sa = vsa.spectralAnalysis;
+        html += `<div style="padding:8px 12px;font-size:11px;color:#aaa;border-top:1px solid rgba(255,255,255,0.05);">Spectral centroid shift: ${sa.centroidShift > 0 ? '+' : ''}${sa.centroidShift} Hz | Hammarberg shift: ${sa.hammarbergShift > 0 ? '+' : ''}${sa.hammarbergShift} dB</div>`;
+    }
+
+    // Overall assessment
+    html += `<div style="padding:8px 12px;font-size:12px;color:#ccc;border-top:1px solid rgba(255,255,255,0.05);">${vsa.overallAssessment}</div>`;
+
+    // Indicator tags
+    if (vsa.indicators && vsa.indicators.length > 0) {
+        html += '<div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:4px;">';
+        vsa.indicators.forEach(ind => {
+            const tagColor = ind.severity === 'high' ? '#f44336' : (ind.severity === 'moderate' ? '#ff9800' : '#00bcd4');
+            html += `<span class="ind-tag" style="background:${tagColor}22;color:${tagColor};border:1px solid ${tagColor}44;">${ind.label}</span>`;
+        });
+        html += '</div>';
+    }
+
+    // Confidence warning
+    if (vsa.confidenceLevel && vsa.confidenceLevel < 60) {
+        html += `<div style="padding:8px 12px;font-size:11px;color:#ff9800;border-top:1px solid rgba(255,255,255,0.05);">&#9888; Low confidence (${vsa.confidenceLevel}%) — limited speech data available</div>`;
+    }
+
+    html += '</div>';
+    return html;
+}
+
 // ── Video Upload ──
 btnUpload.addEventListener('click', () => {
     if (!currentMode) {
@@ -1124,6 +1303,21 @@ fileInput.addEventListener('change', async (e) => {
 
         if (currentMode === 'detection') setupDetectionUI();
         else setupDeceptionUI();
+
+        // Init VSA for uploaded video with audio track (deception mode)
+        voiceStressEngine.clearAll();
+        vsaAvailable = false;
+        if (currentMode === 'deception') {
+            try {
+                voiceStressEngine.initFromMediaElement(video);
+                vsaAvailable = true;
+                updateMicStatus('active', 'Audio: Extracting from video');
+            } catch (e) {
+                console.warn('VSA from video failed:', e);
+                vsaAvailable = false;
+                updateMicStatus('denied', 'No audio track in video');
+            }
+        }
 
         timerSection.style.display = 'block';
         btnStart.disabled = true;

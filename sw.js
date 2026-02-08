@@ -1,4 +1,4 @@
-const CACHE_NAME = 'microsenses-mini2-v8';
+const CACHE_NAME = 'microsenses-mini2-v9';
 const ASSETS = [
     '/',
     '/index.html',
@@ -7,6 +7,7 @@ const ASSETS = [
     '/js/threat-engine.js',
     '/js/neuro-analyzer.js',
     '/js/deception-engine.js',
+    '/js/voice-stress-engine.js',
     '/manifest.json',
     '/assets/icon-192.png',
     '/assets/icon-512.png'

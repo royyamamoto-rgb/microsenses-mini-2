@@ -272,10 +272,12 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .mode-badge.deception { background: rgba(224,64,251,0.2); color: #e040fb; }
 
 /* ── Deception Metrics ── */
-.deception-metrics { grid-template-columns: repeat(4, 1fr); }
-@media (max-width: 600px) { .deception-metrics { grid-template-columns: repeat(2, 1fr); } }
+.deception-metrics { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 768px) { .deception-metrics { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px) { .deception-metrics { grid-template-columns: repeat(2, 1fr); } }
 .metric-card.deception-prob .value { color: #e040fb; }
 .metric-card.concealment .value { color: #ff6b6b; }
+.metric-card.voice-stress .value { color: #00bcd4; }
 .metric-card.cognitive-load .value { color: #ffc107; }
 .metric-card.truthfulness .value { color: #4caf50; }
 
@@ -291,6 +293,8 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .ind-chip.alert { background: rgba(244,67,54,0.15); color: #f44336; }
 .ind-chip.ok { background: rgba(76,175,80,0.15); color: #4caf50; }
 .ind-chip.neutral { background: rgba(255,255,255,0.05); color: #666; }
+.ind-chip.voice { background: rgba(0,188,212,0.15); color: #00bcd4; }
+.ind-chip.voice-alert { background: rgba(244,67,54,0.15); color: #f44336; animation: pulse 0.5s 3; }
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
 
 /* ── Deception Report Cards ── */
@@ -337,6 +341,29 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; colo
 .blink-item, .asym-item { background: #16213e; border-radius: 6px; padding: 8px; text-align: center; }
 .blink-item .b-label, .asym-item .a-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
 .blink-item .b-val, .asym-item .a-val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+/* ── Mic Status ── */
+.mic-status {
+    margin-top: 12px; padding: 8px 12px; background: #1e2a3f; border-radius: 8px;
+    font-size: 11px; display: flex; align-items: center; gap: 8px; letter-spacing: 1px;
+}
+.mic-status .mic-icon { font-size: 14px; }
+.mic-status .mic-text { color: #888; }
+.mic-status.active .mic-text { color: #4caf50; }
+.mic-status.denied .mic-text { color: #f44336; }
+.mic-status.no-speech .mic-text { color: #ffc107; }
+
+/* ── VSA Report Card ── */
+.vsa-card { background: #1e2a3f; border-radius: 10px; padding: 14px; margin-bottom: 10px; border-left: 4px solid #00bcd4; }
+.vsa-card.elevated { border-left-color: #ff9800; }
+.vsa-card.high { border-left-color: #f44336; }
+.vsa-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.vsa-score { font-size: 28px; font-weight: 700; color: #00bcd4; }
+.vsa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+@media (max-width: 600px) { .vsa-grid { grid-template-columns: repeat(2, 1fr); } }
+.vsa-item { background: #16213e; border-radius: 6px; padding: 8px; text-align: center; }
+.vsa-item .vsa-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.vsa-item .vsa-val { font-size: 16px; font-weight: 700; margin-top: 2px; color: #00bcd4; }
 
 /* ── Safe area ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {

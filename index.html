@@ -96,6 +96,10 @@
             <div class="label">Truthful</div>
             <div class="value" id="rtTruthfulness">--</div>
           </div>
+          <div class="metric-card voice-stress">
+            <div class="label">Voice Stress</div>
+            <div class="value" id="rtVoiceStress">--</div>
+          </div>
         </div>
 
         <div class="formula-box" id="formulaBox">
@@ -118,6 +122,12 @@
         <div id="deceptionIndicators" class="deception-indicators" style="display:none;">
           <div style="font-size:11px;color:#888;margin-bottom:6px;letter-spacing:1px;">LIVE INDICATORS</div>
           <div id="liveIndicatorChips" class="indicator-chips"></div>
+        </div>
+
+        <!-- Microphone Status (Deception mode only) -->
+        <div id="micStatus" class="mic-status" style="display:none;">
+          <span class="mic-icon" id="micIcon">&#x1F3A4;</span>
+          <span class="mic-text" id="micText">Microphone: Initializing...</span>
         </div>
       </div>
 
@@ -246,6 +256,7 @@
   <script src="js/threat-engine.js"></script>
   <script src="js/neuro-analyzer.js"></script>
   <script src="js/deception-engine.js"></script>
+  <script src="js/voice-stress-engine.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

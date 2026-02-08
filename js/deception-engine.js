@@ -63,7 +63,7 @@ class DeceptionEngine {
     /**
      * Quick real-time deception assessment (last 30 frames)
      */
-    _quickDeceptionAssess(personId) {
+    _quickDeceptionAssess(personId, vsaQuick = null) {
         const history = this.frameHistory.get(personId);
         if (!history || history.length < 5) {
             return {
@@ -144,6 +144,14 @@ class DeceptionEngine {
             deceptionProbability = Math.round(deceptionProbability * 0.3);
         }
 
+        // Blend VSA if available (20% voice, 80% facial)
+        if (vsaQuick && vsaQuick.isSpeaking && vsaQuick.hasBaseline) {
+            deceptionProbability = Math.min(100, Math.round(
+                deceptionProbability * 0.80 + vsaQuick.voiceStress * 0.20
+            ));
+            cognitiveLoad = Math.min(100, Math.round(cognitiveLoad + vsaQuick.voiceStress * 0.15));
+        }
+
         const concealmentScore = Math.min(100, Math.round(
             (concealmentSignal ? 40 : 0) +
             avgAsymmetry * 0.4 +
@@ -174,7 +182,7 @@ class DeceptionEngine {
     /**
      * Full post-scan deception analysis
      */
-    fullAnalysis(personId) {
+    fullAnalysis(personId, vsaReport = null) {
         const history = this.frameHistory.get(personId);
         if (!history || history.length < 15) return this._defaultResult(personId);
 
@@ -196,7 +204,7 @@ class DeceptionEngine {
         const deviations = this._computeDeviations(analysisFrames, baselineProfile);
 
         // --- Cognitive load ---
-        const cognitiveLoadAvg = Math.min(100, Math.round(
+        let cognitiveLoadAvg = Math.min(100, Math.round(
             expressionAnalysis.instabilityRate * 100 +
             asymmetryAnalysis.avgAsymmetry * 0.6 +
             gazeAnalysis.aversionRate * 60 +
@@ -212,7 +220,7 @@ class DeceptionEngine {
 
         // --- Overall deception probability ---
         const typeMax = Math.max(falsification.score, concealment.score, equivocation.score);
-        const deceptionProbability = Math.min(100, Math.round(
+        let deceptionProbability = Math.min(100, Math.round(
             typeMax * 0.5 +
             cognitiveLoadAvg * 0.2 +
             (microExpressions.length / durationSec) * 8 +
@@ -220,6 +228,16 @@ class DeceptionEngine {
             blinkAnalysis.anomalyScore * 0.15 +
             incongruenceAnalysis.incongruenceRate * 40
         ));
+
+        // Blend VSA into final scores (20% voice, 80% facial)
+        if (vsaReport && vsaReport.baselineEstablished) {
+            deceptionProbability = Math.min(100, Math.round(
+                deceptionProbability * 0.80 + vsaReport.voiceStressScore * 0.20
+            ));
+            cognitiveLoadAvg = Math.min(100, Math.round(
+                cognitiveLoadAvg + vsaReport.voiceStressScore * 0.15
+            ));
+        }
 
         const truthfulnessIndex = Math.max(0, 100 - deceptionProbability);
         const confidenceLevel = Math.min(100, Math.round((history.length / 120) * 100));
@@ -257,6 +275,7 @@ class DeceptionEngine {
             expressionIncongruence: incongruenceAnalysis,
             indicators,
             overallAssessment,
+            voiceStressAnalysis: vsaReport || null,
             framesAnalyzed: history.length,
             scanDuration: durationSec,
             baselineEstablished: baseline.length >= 30
