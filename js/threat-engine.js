@@ -441,9 +441,8 @@ class ThreatEngine {
         // Detection-mode specific indicators
         if (aggression > 70 && badIntent > 60) indicators.push({ label: 'VIOLENT TENDENCY', color: 'red' });
         if (stability < 25 && stress > 50) indicators.push({ label: 'MENTALLY UNSTABLE', color: 'red' });
-        if (aggression > 50 && patterns.patterns.escalating) indicators.push({ label: 'HOSTILE INTENT', color: 'red' });
-
-        if (stability < 30) indicators.push({ label: 'UNSTABLE', color: 'orange' });
+        else if (stability < 30) indicators.push({ label: 'UNSTABLE', color: 'orange' });
+        if (badIntent <= 70 && aggression > 50 && patterns.patterns.escalating) indicators.push({ label: 'HOSTILE INTENT', color: 'red' });
         if (stability > 85 && aggression < 20 && deception < 20) indicators.push({ label: 'COMPOSED', color: 'green' });
 
         if (indicators.length === 0) indicators.push({ label: 'CLEAR', color: 'green' });

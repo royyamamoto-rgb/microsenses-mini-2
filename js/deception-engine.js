@@ -37,7 +37,7 @@ class DeceptionEngine {
     processFrame(personId, detection) {
         if (!this.frameHistory.has(personId)) {
             this.frameHistory.set(personId, []);
-            this.blinkState.set(personId, { inBlink: false, blinkStart: 0, blinks: [], lastBlinkEnd: 0, suppressionStart: 0 });
+            this.blinkState.set(personId, { inBlink: false, blinkStart: 0, blinks: [], lastBlinkEnd: 0, suppressionStart: 0, absoluteFrame: 0 });
             this.microExpressionLog.set(personId, []);
         }
 
@@ -49,8 +49,10 @@ class DeceptionEngine {
             history.shift();
         }
 
-        // Real-time blink tracking
-        this._trackBlinks(personId, frameData, history.length - 1);
+        // Real-time blink tracking (use absolute frame counter for consistent indexing)
+        const blinkData = this.blinkState.get(personId);
+        blinkData.absoluteFrame++;
+        this._trackBlinks(personId, frameData, blinkData.absoluteFrame);
 
         // Real-time micro-expression detection
         this._detectMicroExpressions(personId, history);
@@ -100,9 +102,11 @@ class DeceptionEngine {
 
         // --- Blink anomaly detection ---
         const blinkData = this.blinkState.get(personId);
-        const recentBlinks = blinkData.blinks.filter(b => b.endFrame > history.length - 90);
-        const blinkRate = recentBlinks.length * (30 / Math.min(90, history.length)) * 60;
-        const blinkAnomaly = blinkRate > 30 || blinkRate < 5;
+        const absFrame = blinkData.absoluteFrame;
+        const recentBlinks = blinkData.blinks.filter(b => b.endFrame > absFrame - 90);
+        const blinkWindow = Math.min(90, absFrame);
+        const blinkRate = blinkWindow > 0 ? recentBlinks.length * (30 / blinkWindow) * 60 : 0;
+        const blinkAnomaly = absFrame > 30 && (blinkRate > 30 || blinkRate < 5);
 
         // --- Micro-expression check ---
         const microLog = this.microExpressionLog.get(personId);
@@ -221,7 +225,7 @@ class DeceptionEngine {
         const confidenceLevel = Math.min(100, Math.round((history.length / 120) * 100));
 
         // --- Deception timeline ---
-        const deceptionTimeline = this._buildDeceptionTimeline(history, fps);
+        const deceptionTimeline = this._buildDeceptionTimeline(personId, history, fps);
 
         // --- Indicators ---
         const indicators = this._generateIndicators(
@@ -302,7 +306,7 @@ class DeceptionEngine {
     // ── Facial Asymmetry ──
 
     _computeFrameAsymmetry(landmarks) {
-        if (landmarks.length < 48) return 0;
+        if (landmarks.length < 68) return 0;
 
         // Nose bridge as midline
         const noseX = this.NOSE_BRIDGE.reduce((s, i) => s + (landmarks[i] ? landmarks[i].x : 0), 0) / this.NOSE_BRIDGE.length;
@@ -495,8 +499,9 @@ class DeceptionEngine {
             }
         }
 
-        // Close open spikes that have ended
-        for (const entry of log) {
+        // Close open spikes that have ended (iterate in reverse to safely splice)
+        for (let li = log.length - 1; li >= 0; li--) {
+            const entry = log[li];
             if (entry.endFrame !== null) continue;
             const val = current.expressions[entry.key];
             const elapsed = idx - entry.frameIndex;
@@ -509,13 +514,11 @@ class DeceptionEngine {
                 // Only keep if it lasted 1-6 frames (micro-expression range: ~33-200ms at 30fps)
                 if (elapsed > 6) {
                     // Too long — not a micro-expression, remove
-                    const logIdx = log.indexOf(entry);
-                    if (logIdx >= 0) log.splice(logIdx, 1);
+                    log.splice(li, 1);
                 }
             } else if (elapsed > 8) {
                 // Stuck open — close and remove
-                const logIdx = log.indexOf(entry);
-                if (logIdx >= 0) log.splice(logIdx, 1);
+                log.splice(li, 1);
             }
         }
     }
@@ -782,7 +785,7 @@ class DeceptionEngine {
 
     // ── Deception Timeline ──
 
-    _buildDeceptionTimeline(history, fps) {
+    _buildDeceptionTimeline(personId, history, fps) {
         const timeline = [];
         const windowSize = 30; // 1 second chunks
 
@@ -803,7 +806,7 @@ class DeceptionEngine {
             const avgAsym = chunk.filter(f => f.asymmetry !== null).map(f => f.asymmetry);
             const chunkAsym = avgAsym.length > 0 ? avgAsym.reduce((a, b) => a + b, 0) / avgAsym.length : 0;
 
-            const microLog = this.microExpressionLog.get(history[0] ? 'SUBJECT' : '');
+            const microLog = this.microExpressionLog.get(personId);
             const chunkMicros = microLog ? microLog.filter(m => m.frameIndex >= i && m.frameIndex < i + windowSize).length : 0;
 
             const score = Math.min(100, Math.round(

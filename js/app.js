@@ -41,6 +41,8 @@ let scanStartTime = null;
 let facingMode = 'user';
 let scanType = 'Live';
 let frameCount = 0;
+let pendingUpload = false; // true when upload is waiting for mode selection
+let pendingUploadDeception = false; // true when deception upload needs duration then file picker
 
 // Vibration metrics state
 let lastLandmarks = null;
@@ -589,6 +591,21 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         currentMode = btn.dataset.mode;
         hideModeModal();
+
+        // If upload is pending, open file picker instead of starting live scan
+        if (pendingUpload) {
+            pendingUpload = false;
+            threatEngine.setMode(currentMode);
+            if (currentMode === 'detection') {
+                scanDuration = 0;
+                fileInput.click();
+            } else {
+                pendingUploadDeception = true;
+                showDurationModal();
+            }
+            return;
+        }
+
         if (currentMode === 'detection') {
             scanDuration = 0; // Always continuous
             threatEngine.setMode('detection');
@@ -614,7 +631,13 @@ durationBtns.forEach(btn => {
 });
 
 document.getElementById('confirmStart').addEventListener('click', () => {
-    startScan();
+    hideDurationModal();
+    if (pendingUploadDeception) {
+        pendingUploadDeception = false;
+        fileInput.click();
+    } else {
+        startScan();
+    }
 });
 
 // ── UI Setup per mode ──
@@ -712,19 +735,22 @@ function completeScan() {
     btnUpload.disabled = false;
     btnStop.disabled = true;
 
+    let hasResults = true;
     if (currentMode === 'detection') {
-        completeDetectionScan();
+        hasResults = completeDetectionScan();
     } else {
         completeDeceptionScan();
     }
 
-    const elapsed = (performance.now() - scanStartTime) / 1000;
-    document.getElementById('scanDurationDisplay').textContent = `${elapsed.toFixed(0)}s`;
-    document.getElementById('scanFrames').textContent = frameCount;
-    document.getElementById('scanType').textContent = currentMode === 'detection' ? 'Detection' : 'Deception Interview';
+    if (hasResults) {
+        const elapsed = (performance.now() - scanStartTime) / 1000;
+        document.getElementById('scanDurationDisplay').textContent = `${elapsed.toFixed(0)}s`;
+        document.getElementById('scanFrames').textContent = frameCount;
+        document.getElementById('scanType').textContent = currentMode === 'detection' ? 'Detection' : 'Deception Interview';
 
-    resultsPanel.classList.add('active');
-    setStatus('Analysis complete!', 'ready');
+        resultsPanel.classList.add('active');
+        setStatus('Analysis complete!', 'ready');
+    }
 }
 
 function completeDetectionScan() {
@@ -739,7 +765,7 @@ function completeDetectionScan() {
 
     if (threatResults.length === 0 && frameCount < 10) {
         setStatus('Not enough data. Try again with face visible.', 'error');
-        return;
+        return false;
     }
 
     document.getElementById('scanPersons').textContent = threatResults.length;
@@ -761,6 +787,7 @@ function completeDetectionScan() {
     document.getElementById('deceptionResultsSection').style.display = 'none';
 
     renderDetectionResults(threatResults, neuroResults);
+    return true;
 }
 
 function completeDeceptionScan() {
@@ -1045,8 +1072,12 @@ function drawDeceptionTimelineChart(timeline) {
 
 // ── Video Upload ──
 btnUpload.addEventListener('click', () => {
-    if (!currentMode) showModeModal();
-    else fileInput.click();
+    if (!currentMode) {
+        pendingUpload = true;
+        showModeModal();
+    } else {
+        fileInput.click();
+    }
 });
 
 fileInput.addEventListener('change', async (e) => {
@@ -1129,7 +1160,20 @@ async function processVideoFrame() {
 
     const now = performance.now();
     const elapsed = now - scanStartTime;
-    timerValue.textContent = formatTimer(elapsed);
+
+    // Auto-stop for deception mode with a set duration
+    if (scanDuration > 0 && elapsed >= scanDuration * 1000) {
+        completeScan();
+        return;
+    }
+
+    if (scanDuration > 0) {
+        const remaining = scanDuration - elapsed / 1000;
+        timerValue.textContent = formatTimer(remaining * 1000);
+        progressFill.style.width = ((elapsed / 1000) / scanDuration * 100) + '%';
+    } else {
+        timerValue.textContent = formatTimer(elapsed);
+    }
     frameCount++;
 
     try {

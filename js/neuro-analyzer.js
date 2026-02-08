@@ -815,7 +815,12 @@ class NeuroAnalyzer {
      * Deception-focused analysis returning only deception-relevant biometrics
      */
     analyzeForDeception(frameHistory, fps = 30) {
-        if (!frameHistory || frameHistory.length < 10) return null;
+        if (!frameHistory || frameHistory.length < 10) return {
+            blinkRate: 0, blinkRegularity: 0, blinkIntervals: [],
+            avgBlinkDuration: 0, expressionVolatility: 0, expressionChangeRate: 0,
+            affectCongruence: 0, microLeakRate: 0, gazeStability: 0,
+            gazeDrift: 0, scanRate: 0, psychomotorIndex: 50, psychomotorSpeed: 'normal'
+        };
 
         const blinkAnalysis = this._analyzeBlinkPatterns(frameHistory, fps);
         const expressionDynamics = this._analyzeExpressionDynamics(frameHistory);
